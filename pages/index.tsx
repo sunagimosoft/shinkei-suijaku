@@ -9,7 +9,7 @@ type Props = {
 
 const Home: NextPage<Props> = props => {
   return (
-    <div className='text-gray-800 subpixel-antialiased'>
+    <div className='text-gray-800 subpixel-antialiased text-xl'>
       <Head>
         <title>神鶏衰弱</title>
         <meta name="description" content="神鶏の神経衰弱" />

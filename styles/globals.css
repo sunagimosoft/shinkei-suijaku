@@ -24,5 +24,6 @@
 
 body {
     background-image: url('../public/background.jpg');
+    background-size: cover;
     font-family: 'BIZ UDGothic';
 }

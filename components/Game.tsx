@@ -1,5 +1,4 @@
-import gsap from 'gsap'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import { useSound } from 'use-sound'
 import cardFlipSound from '../public/assets/sounds/card-flip.aac'
@@ -13,52 +12,160 @@ export type LevelImages = {
 }
 
 export const Game = (props: { classname: string, images: LevelImages }) => {
+  const [saveValue, setSaveValue] = useState<SaveValue>({ bestScores: {} })
   const [level, setLevel] = useState<Level>()
-  const [clearedLevel, setClearedLevel] = useState<Level>()
+  const clearedLevel = saveValue.clearedLevel
 
-  const onCleared = () => {
-    setClearedLevel(level)
-    setLevel(undefined)
+  useEffect(() => setSaveValue(loadState()), [])
+
+  const onCleared = (result: Result) => {
+    if (!level) return
+
+    if (!clearedLevel || level > clearedLevel) {
+      saveValue.clearedLevel = level
+    }
+
+    const levelConfig = levelConfigs[level]
+    const best = saveValue.bestScores[level]
+    if (!best || calcScore(levelConfig, best) < calcScore(levelConfig, result)) {
+      saveValue.bestScores[level] = result
+    }
+
+    saveState(saveValue)
+    setSaveValue(saveValue)
   }
+
+  const onClearData = () => {
+    clearState()
+    setSaveValue({ bestScores: {} })
+  }
+
+  const onReturn = () => setLevel(undefined)
 
   return <div className={props.classname}>
     <div className='absolute w-screen h-screen select-none'>
       {level
-        ? <GameCore level={level} images={props.images} onReturnToTitle={onCleared} />
-        : <SelectLevel clearedLevel={clearedLevel} onLevelSelected={level => setLevel(level)} />}
+        ? <GameCore level={level} images={props.images} onReturnToTitle={onReturn} onCleared={onCleared} />
+        : <div className='w-full h-full'>
+          <SelectLevel clearedLevel={clearedLevel} bestScores={saveValue.bestScores} onLevelSelected={level => setLevel(level)} />
+          <button className='absolute top-0 right-0 bg-white rounded-md text-sm' onClick={onClearData}>データクリア</button>
+        </div>}
     </div>
   </div>
 }
 
 type Level = 1 | 285 | 28285
 
-const SelectLevel = (props: { onLevelSelected: (level: Level) => void, clearedLevel?: Level }) => {
+type BestScore = {
+  time: number
+  moveCount: number
+}
+
+type BestScores = { [level in Level]?: BestScore }
+
+type SaveValue = {
+  clearedLevel?: Level
+  bestScores: BestScores
+}
+
+const SAVE_KEY = 'SAVE'
+
+const loadState = () => {
+  const json = typeof window === 'undefined' ? null : localStorage.getItem(SAVE_KEY)
+  const value: SaveValue = json ? JSON.parse(json) : {
+    bestScores: {}
+  }
+  return value
+}
+
+const saveState = (value: SaveValue) => {
+  localStorage.setItem(SAVE_KEY, JSON.stringify(value))
+}
+
+const clearState = () => localStorage.removeItem(SAVE_KEY)
+
+type LevelConfig = {
+  className: string
+  columns: number
+  rows: number
+  standardMoveCount: number
+  standardTime: number
+}
+
+const levelConfigs: { [level in Level]: LevelConfig } = {
+  1: {
+    className: 'grid-cols-4',
+    columns: 4,
+    rows: 2,
+    standardMoveCount: 6,
+    standardTime: 10,
+  },
+  285: {
+    className: 'grid-cols-5',
+    columns: 5,
+    rows: 2,
+    standardMoveCount: 8,
+    standardTime: 20,
+  },
+  28285: {
+    className: 'grid-cols-8',
+    columns: 8,
+    rows: 3,
+    standardMoveCount: 24,
+    standardTime: 30,
+  },
+}
+
+const calcScore = (levelConfig: LevelConfig, best: { time: number, moveCount: number }) =>
+  Math.floor(
+    (100 - (best.moveCount - levelConfig.standardMoveCount) - (best.time / 1000 - levelConfig.standardTime))
+    * 1000
+  ) / 1000
+
+const timeToString = (time: number) => {
+  const minutes = Math.floor(time / 1000 / 60)
+  const seconds = Math.floor(time / 1000)
+  const millisecond = time % 1000
+  return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${millisecond.toString().padStart(3, '0')}`
+}
+
+type SelectLevelProps = {
+  clearedLevel?: Level
+  bestScores: BestScores
+  onLevelSelected: (level: Level) => void
+}
+
+const SelectLevel = (props: SelectLevelProps) => {
   const isLevel28285 = (props.clearedLevel ?? 0) >= 285
 
   return <div className='w-full h-full flex flex-col text-center justify-center'>
-    <div className='m-2 text-4xl text-red-500 font-bold'>神鶏衰弱</div>
-    <div className='m-2 text-xl text-gray-800'>🐓難易度を選択してね🐓</div>
+    <div className='m-4 text-6xl text-red-500 font-bold'>神鶏衰弱</div>
+    <div className='m-2 text-2xl text-gray-800'>🐓難易度を選択してね🐓</div>
 
     <button
       className='m-2 p-2 rounded-md bg-cyan-200 hover:bg-cyan-300'
       onClick={() => props.onLevelSelected(1)}
     >
-      🐣 レベル 1 🐣
+      🐣 レベル 1 🐣{props.bestScores[1] && <BestScoreView levelConfig={levelConfigs[1]} best={props.bestScores[1]} />}
     </button>
     <button
       className='m-2 p-2 rounded-md bg-red-300 hover:bg-red-400'
       onClick={() => props.onLevelSelected(285)}
     >
-      🐔 レベル 285 🐔
+      🐔 レベル 285 🐔{props.bestScores[285] && <BestScoreView levelConfig={levelConfigs[285]} best={props.bestScores[285]} />}
     </button>
     <button
       className={`m-2 p-2 rounded-md text-white ${isLevel28285 ? 'bg-pink-600 hover:bg-pink-700' : 'bg-gray-500 cursor-not-allowed'}`}
       disabled={!isLevel28285}
       onClick={() => props.onLevelSelected(28285)}
     >
-      {isLevel28285 ? '🍗 タベル 28285 🍗' : '🔒 レベル 285 クリアで解放 🔒'}
+      {isLevel28285 ? '🍗 タベル 28285 🍗' : '🔒 レベル 285 クリアで解放 🔒'}{props.bestScores[28285] && <BestScoreView levelConfig={levelConfigs[28285]} best={props.bestScores[28285]} />}
     </button>
   </div>
+}
+
+const BestScoreView = (props: { levelConfig: LevelConfig, best: BestScore }) => {
+  return <span className='pl-1 text-base'>| {calcScore(props.levelConfig, props.best)} {timeToString(props.best.time)} {props.best.moveCount}手</span>
 }
 
 const Time = (props: { startedAt?: number, endedAt?: number, className: string }) => {
@@ -105,41 +212,17 @@ const getCards = (images: string[], levelConfig: LevelConfig) => {
   }))
 }
 
-type LevelConfig = {
-  className: string
-  columns: number
-  rows: number
-}
-
-const levelConfigs: { [level in Level]: LevelConfig } = {
-  1: {
-    className: 'grid-cols-4',
-    columns: 4,
-    rows: 2,
-  },
-  285: {
-    className: 'grid-cols-5',
-    columns: 5,
-    rows: 2,
-  },
-  28285: {
-    className: 'grid-cols-8',
-    columns: 8,
-    rows: 3,
-  },
-}
-
 type GameState = 'init' | 'count-down' | 'select1' | 'select2' | 'selected' | 'failed' | 'result'
 
 type Result = {
   moveCount: number
-  time: string
-  score: number
+  time: number
 }
 
-const GameCore = (props: { level: Level, images: LevelImages, onReturnToTitle: () => void }) => {
+const GameCore = (props: { level: Level, images: LevelImages, onReturnToTitle: () => void, onCleared: (result: Result) => void }) => {
+  const levelConfig = levelConfigs[props.level]
   const [state, setState] = useState<GameState>('init')
-  const [cards, setCards] = useState<CardProps[]>(() => getCards(props.images[props.level], levelConfigs[props.level]))
+  const [cards, setCards] = useState<CardProps[]>(() => getCards(props.images[props.level], levelConfig))
   const [countDown, setCountDown] = useState<number>()
   const [isPlaying, setIsPlaying] = useState(false)
   const [startedAt, setStartedAt] = useState<number>()
@@ -190,12 +273,12 @@ const GameCore = (props: { level: Level, images: LevelImages, onReturnToTitle: (
         const end = endedAt ?? Date.now()
         setEndedAt(end)
         setIsPlaying(false)
-        const elapsed = new Date(end - (startedAt ?? 0))
-        setResult({
-          score: 100 - (moveCount - 4 * 2) - (elapsed.valueOf() / (1000 * 4) - 4),
+        const newResult: Result = {
+          time: end - (startedAt ?? 0),
           moveCount: moveCount,
-          time: `${elapsed.getUTCHours()}:${elapsed.getUTCMinutes()}:${elapsed.getUTCSeconds()}.${elapsed.getUTCMilliseconds()}`
-        })
+        }
+        setResult(newResult)
+        props.onCleared(newResult)
         break
     }
   }, [state, countDown])
@@ -222,7 +305,7 @@ const GameCore = (props: { level: Level, images: LevelImages, onReturnToTitle: (
   }
 
   return <>
-    <div className='absolute left-0 top-0 right-0 bottom-0 p-2 pt-6 overflow-hidden'>
+    <div className='absolute left-0 top-0 right-0 bottom-0 p-2 pt-9 overflow-hidden'>
       <div className={`grid ${levelConfigs[props.level].className} gap-2 w-full h-full`}>
         {cards.map((card, index) => <Card key={index} {...card} onClick={() => onCardClicked(card)} />)}
       </div>
@@ -232,16 +315,16 @@ const GameCore = (props: { level: Level, images: LevelImages, onReturnToTitle: (
       <div className='text-white bg-rose-300 p-8 opacity-80'>{countDown}</div>
     </div>}
 
-    {result && <div className='absolute flex flex-col w-full h-full text-sm text-center justify-center'>
+    {result && <div className='absolute flex flex-col w-full h-full text-center justify-center'>
       <div className='self-center p-2 bg-red-200'>
-        <div className='p-1'>{result.time}</div>
+        <div className='p-1'>{timeToString(result.time)}</div>
         <div className='p-1'>手数 {result.moveCount}</div>
-        <div className='p-1'>スコア {result.score}</div>
+        <div className='p-1'>スコア {calcScore(levelConfig, result)}</div>
         <button className='p-1 mt-1 rounded-md bg-white' onClick={props.onReturnToTitle}>タイトルに戻る</button>
       </div>
     </div>}
 
-    <div className='absolute top-0 pt-1 w-full h-4 text-xs flex flex-row'>
+    <div className='absolute top-0 pt-1 w-full flex flex-row'>
       <div className='flex-grow ml-2'>{getMessage(state)}</div>
       <div className='mr-2'>レベル: {props.level}</div>
       <div className='mr-2'>手数: {moveCount}</div>
@@ -284,12 +367,12 @@ const Card = (props: CardProps) => {
     >
       <div className={`relative w-full h-full text-center transition transform-3d ${props.isFront ? '' : 'rotate-y-180'}`}>
         <div className={`absolute w-full h-full rounded-md border-4 bg-cyan-200 blur-md backface-hidden ${props.state === 'duty' ? 'visible' : 'hidden'}`} />
-        <div className={`absolute w-full h-full break-words overflow-hidden rounded-md border-4 ${props.isSelectable ? 'border-white hover:border-cyan-300' : 'border-gray-400'} bg-cyan-100 backface-hidden`}>
+        <div className={`absolute w-full h-full break-words overflow-hidden rounded-md border-4 ${props.isSelectable ? 'border-white hover:border-cyan-300' : 'border-gray-400'} bg-orange-100 backface-hidden`}>
           {props.frontImage && <Image src={props.frontImage} layout='fill' objectFit='cover' className='absolute pointer-events-none' />}
           {/* <div className='absolute break-all'>Front: {props.frontImage}</div> */}
         </div>
         <div className={`absolute w-full h-full break-words overflow-hidden rounded-md border-4 ${props.isSelectable ? 'border-white hover:border-cyan-300' : 'border-gray-400'} bg-red-200 backface-hidden rotate-y-180`}>
-          {/* <Image src='/background.jpg' layout='fill' className='absolute pointer-events-none' /> */}
+          <Image src='/assets/card-back.jpg' layout='fill' objectFit='cover' className='absolute pointer-events-none' />
           {/* <div className='absolute break-all'>Back: {props.frontImage}</div> */}
         </div>
       </div>
