@@ -28,8 +28,8 @@ export const getStaticProps: GetStaticProps<Props> = async () => {
     props: {
       images: {
         1: await getLevelImages('./public/assets/level1', '/assets/level1'),
-        285: await getLevelImages('./public/assets/level285', '/assets/level1'),
-        28285: await getLevelImages('./public/assets/level28285', '/assets/level1'),
+        285: await getLevelImages('./public/assets/level285', '/assets/level285'),
+        28285: await getLevelImages('./public/assets/level28285', '/assets/level28285'),
       }
     }
   }

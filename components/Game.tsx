@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Image from 'next/image'
 import { useSound } from 'use-sound'
 import cardFlipSound from '../public/assets/sounds/card-flip.aac'
@@ -36,8 +36,10 @@ export const Game = (props: { classname: string, images: LevelImages }) => {
   }
 
   const onClearData = () => {
-    clearState()
-    setSaveValue({ bestScores: {} })
+    if (confirm('データを削除しますか？')) {
+      clearState()
+      setSaveValue({ bestScores: {} })
+    }
   }
 
   const onReturn = () => setLevel(undefined)
@@ -90,6 +92,7 @@ type LevelConfig = {
   rows: number
   standardMoveCount: number
   standardTime: number
+  spinDown: string
 }
 
 const levelConfigs: { [level in Level]: LevelConfig } = {
@@ -99,20 +102,23 @@ const levelConfigs: { [level in Level]: LevelConfig } = {
     rows: 2,
     standardMoveCount: 6,
     standardTime: 10,
+    spinDown: '🐣',
   },
   285: {
-    className: 'grid-cols-5',
-    columns: 5,
-    rows: 2,
-    standardMoveCount: 8,
-    standardTime: 20,
+    className: 'grid-cols-6',
+    columns: 6,
+    rows: 3,
+    standardMoveCount: 18,
+    standardTime: 45,
+    spinDown: '🐔',
   },
   28285: {
     className: 'grid-cols-8',
     columns: 8,
-    rows: 3,
-    standardMoveCount: 24,
-    standardTime: 30,
+    rows: 4,
+    standardMoveCount: 48,
+    standardTime: 60,
+    spinDown: '🍗',
   },
 }
 
@@ -139,6 +145,7 @@ const SelectLevel = (props: SelectLevelProps) => {
   const isLevel28285 = (props.clearedLevel ?? 0) >= 285
 
   return <div className='w-full h-full flex flex-col text-center justify-center'>
+    <div className='text-sm'>登録者1万人到達おめチキ記念</div>
     <div className='m-4 text-6xl text-red-500 font-bold'>神鶏衰弱</div>
     <div className='m-2 text-2xl text-gray-800'>🐓難易度を選択してね🐓</div>
 
@@ -304,6 +311,16 @@ const GameCore = (props: { level: Level, images: LevelImages, onReturnToTitle: (
     }
   }
 
+  const randomSpinDownDivs = useMemo(
+    () =>
+      Array.from({ length: 28 })
+        .map(() => <div className='absolute h-min w-min -top-1/4' style={{
+          animation: `spindown ${Math.random() * 3 + 2}s linear infinite ${Math.random() * 5}s`,
+          left: `${Math.random() * 100}%`,
+        }}>{levelConfig.spinDown}</div>),
+    [props.level]
+  )
+
   return <>
     <div className='absolute left-0 top-0 right-0 bottom-0 p-2 pt-9 overflow-hidden'>
       <div className={`grid ${levelConfigs[props.level].className} gap-2 w-full h-full`}>
@@ -312,16 +329,7 @@ const GameCore = (props: { level: Level, images: LevelImages, onReturnToTitle: (
     </div>
 
     {countDown && <div className='absolute flex flex-col w-full h-full text-9xl text-center justify-center'>
-      <div className='text-white bg-rose-300 p-8 opacity-80'>{countDown}</div>
-    </div>}
-
-    {result && <div className='absolute flex flex-col w-full h-full text-center justify-center'>
-      <div className='self-center p-2 bg-red-200'>
-        <div className='p-1'>{timeToString(result.time)}</div>
-        <div className='p-1'>手数 {result.moveCount}</div>
-        <div className='p-1'>スコア {calcScore(levelConfig, result)}</div>
-        <button className='p-1 mt-1 rounded-md bg-white' onClick={props.onReturnToTitle}>タイトルに戻る</button>
-      </div>
+      <div className='text-white bg-rose-300 p-8 bg-opacity-80'>{countDown}</div>
     </div>}
 
     <div className='absolute top-0 pt-1 w-full flex flex-row'>
@@ -333,6 +341,17 @@ const GameCore = (props: { level: Level, images: LevelImages, onReturnToTitle: (
         <Time startedAt={startedAt} endedAt={endedAt} className='ml-1' />
       </div>
     </div>
+
+    {result && <div className='absolute w-full h-full text-5xl overflow-hidden'>{randomSpinDownDivs}</div>}
+
+    {result && <div className='absolute flex flex-col w-full h-full text-center justify-center'>
+      <div className='self-center p-2 bg-red-200 bg-opacity-95'>
+        <div className='p-1'>{timeToString(result.time)}</div>
+        <div className='p-1'>手数 {result.moveCount}</div>
+        <div className='p-1'>スコア {calcScore(levelConfig, result)}</div>
+        <button className='p-1 mt-1 rounded-md bg-white' onClick={props.onReturnToTitle}>タイトルに戻る</button>
+      </div>
+    </div>}
   </>
 }
 

@@ -18,6 +18,12 @@
     .perspective-1000 {
         perspective: 1000px;
     }
+
+    @keyframes spindown {
+        to {
+            transform: translateY(125vh) rotate(360deg);
+        }
+    }
 }
 
 @import url(../node_modules/@fontsource/biz-udgothic/400.css);
