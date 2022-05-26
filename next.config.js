@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  basePath: '/shinkei-suijaku',
 
   webpack(config, options) {
     const { isServer } = options;

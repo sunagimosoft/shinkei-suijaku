@@ -1,3 +1,4 @@
+import { useRouter } from 'next/router'
 import { memo, useEffect, useMemo, useState } from 'react'
 import { useSound } from 'use-sound'
 import cardFlipSound from '../public/assets/sounds/card-flip.aac'
@@ -206,7 +207,7 @@ const fisherYatesShuffle = function <T>(array: T[]) {
   return array
 }
 
-const getCards = (images: string[], levelConfig: LevelConfig) => {
+const getCards = (images: string[], levelConfig: LevelConfig, basePath: string) => {
   const remainImages = [...images]
   const singles = Array.from({ length: (levelConfig.columns * levelConfig.rows) / 2 }).map(() => {
     const index = Math.floor(Math.random() * remainImages.length)
@@ -215,6 +216,7 @@ const getCards = (images: string[], levelConfig: LevelConfig) => {
 
   const pairs = fisherYatesShuffle([...singles, ...singles])
   return pairs.map((image): CardProps => ({
+    basePath,
     frontImage: image,
     isFront: false,
     isSelectable: false,
@@ -232,8 +234,9 @@ type Result = {
 
 const GameCore = (props: { level: Level, images: LevelImages, onReturnToTitle: () => void, onCleared: (result: Result) => void }) => {
   const levelConfig = levelConfigs[props.level]
+  const router = useRouter()
   const [state, setState] = useState<GameState>('init')
-  const [cards, setCards] = useState<CardProps[]>(() => getCards(props.images[props.level], levelConfig))
+  const [cards, setCards] = useState<CardProps[]>(() => getCards(props.images[props.level], levelConfig, router.basePath))
   const [countDown, setCountDown] = useState<number>()
   const [isPlaying, setIsPlaying] = useState(false)
   const [startedAt, setStartedAt] = useState<number>()
@@ -396,6 +399,7 @@ const getMessage = (state: GameState) => {
 
 
 type CardProps = {
+  basePath: string
   frontImage?: string
   isFront: boolean
   isSelectable: boolean
@@ -415,10 +419,10 @@ const Card = memo(function Card(props: CardProps) {
       <div className={`relative w-full h-full text-center transition transform-3d ${props.isFront ? '' : 'rotate-y-180'}`}>
         <div className={`absolute w-full h-full rounded-md border-4 bg-cyan-200 blur-md backface-hidden ${props.state === 'duty' ? 'visible' : 'hidden'}`} />
         <div className={`absolute w-full h-full break-words overflow-hidden rounded-md border-4 ${props.isSelectable ? 'border-white hover:border-cyan-300' : 'border-gray-400'} bg-orange-100 backface-hidden`}>
-          {props.frontImage && <img onLoad={props.onLoad} src={props.frontImage} className='absolute w-full h-full object-cover pointer-events-none' />}
+          {props.frontImage && <img onLoad={props.onLoad} src={`${props.basePath}${props.frontImage}`} className='absolute w-full h-full object-cover pointer-events-none' />}
         </div>
         <div className={`absolute w-full h-full break-words overflow-hidden rounded-md border-4 ${props.isSelectable ? 'border-white hover:border-cyan-300' : 'border-gray-400'} bg-red-200 backface-hidden rotate-y-180`}>
-          <img src='/assets/card-back.jpg' className='w-full h-full object-cover pointer-events-none' />
+          <img src={`${props.basePath}/assets/card-back.jpg`} className='w-full h-full object-cover pointer-events-none' />
           {props.isLoaded && <div className='absolute top-0'>LOADED!</div>}
         </div>
       </div>
