@@ -1,5 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
-import Image from 'next/image'
+import { memo, useEffect, useMemo, useState } from 'react'
 import { useSound } from 'use-sound'
 import cardFlipSound from '../public/assets/sounds/card-flip.aac'
 import nanSound from '../public/assets/sounds/nan.aac'
@@ -168,6 +167,10 @@ const SelectLevel = (props: SelectLevelProps) => {
     >
       {isLevel28285 ? '🍗 タベル 28285 🍗' : '🔒 レベル 285 クリアで解放 🔒'}{props.bestScores[28285] && <BestScoreView levelConfig={levelConfigs[28285]} best={props.bestScores[28285]} />}
     </button>
+
+    <div className='absolute bottom-0 right-0'>
+      <a href="https://twitter.com/sunagimosoft" className='text-blue-500 hover:underline'>@sunagimosoft</a>
+    </div>
   </div>
 }
 
@@ -216,10 +219,11 @@ const getCards = (images: string[], levelConfig: LevelConfig) => {
     isFront: false,
     isSelectable: false,
     state: 'normal',
+    isLoaded: false,
   }))
 }
 
-type GameState = 'init' | 'count-down' | 'select1' | 'select2' | 'selected' | 'failed' | 'result'
+type GameState = 'init' | 'loading' | 'loaded' | 'count-down' | 'select1' | 'select2' | 'selected' | 'failed' | 'result'
 
 type Result = {
   moveCount: number
@@ -243,6 +247,11 @@ const GameCore = (props: { level: Level, images: LevelImages, onReturnToTitle: (
   useEffect(() => {
     switch (state) {
       case 'init':
+        setState('loading')
+        break
+      case 'loading':
+        break
+      case 'loaded':
         setCountDown(3)
         setState('count-down')
         break
@@ -311,10 +320,19 @@ const GameCore = (props: { level: Level, images: LevelImages, onReturnToTitle: (
     }
   }
 
+  const onCardLoaded = (card: CardProps) => {
+    console.log('loaded', card)
+    card.isLoaded = true
+    setCards([...cards])
+    if (cards.every(c => c.isLoaded)) {
+      setState('loaded')
+    }
+  }
+
   const randomSpinDownDivs = useMemo(
     () =>
       Array.from({ length: 28 })
-        .map(() => <div className='absolute h-min w-min -top-1/4' style={{
+        .map((_, i) => <div key={i} className='absolute h-min w-min -top-1/4' style={{
           animation: `spindown ${Math.random() * 3 + 2}s linear infinite ${Math.random() * 5}s`,
           left: `${Math.random() * 100}%`,
         }}>{levelConfig.spinDown}</div>),
@@ -324,9 +342,13 @@ const GameCore = (props: { level: Level, images: LevelImages, onReturnToTitle: (
   return <>
     <div className='absolute left-0 top-0 right-0 bottom-0 p-2 pt-9 overflow-hidden'>
       <div className={`grid ${levelConfigs[props.level].className} gap-2 w-full h-full`}>
-        {cards.map((card, index) => <Card key={index} {...card} onClick={() => onCardClicked(card)} />)}
+        {cards.map((card, index) => <Card key={index} {...card} onClick={() => onCardClicked(card)} onLoad={() => onCardLoaded(card)} />)}
       </div>
     </div>
+
+    {state === 'loading' && <div className='absolute flex flex-col w-full h-full text-5xl text-center justify-center'>
+      <div className='text-white bg-rose-300 p-8 bg-opacity-80'>ロード中...</div>
+    </div>}
 
     {countDown && <div className='absolute flex flex-col w-full h-full text-9xl text-center justify-center'>
       <div className='text-white bg-rose-300 p-8 bg-opacity-80'>{countDown}</div>
@@ -358,13 +380,17 @@ const GameCore = (props: { level: Level, images: LevelImages, onReturnToTitle: (
 const getMessage = (state: GameState) => {
   switch (state) {
     case 'init': return '初期化中...'
+    case 'loading': return 'ロード中...'
+    case 'loaded': return ''
     case 'count-down': return ''
     case 'select1': return 'カードを選んでね👇'
     case 'select2': return '一致するカードを選んでね👇'
     case 'selected': return ''
     case 'failed': return '残念！タップして次へ'
     case 'result': return '終わり🎉'
-    default: return `state: ${state}`
+    default:
+      const n: never = state
+      return `state: ${state}`
   }
 }
 
@@ -374,10 +400,12 @@ type CardProps = {
   isFront: boolean
   isSelectable: boolean
   state: 'normal' | 'duty' | 'cleared'
+  isLoaded: boolean
   onClick?: () => void
+  onLoad?: () => void
 }
 
-const Card = (props: CardProps) => {
+const Card = memo(function Card(props: CardProps) {
   return (
     <button
       className='relative select-none perspective-1000'
@@ -387,15 +415,14 @@ const Card = (props: CardProps) => {
       <div className={`relative w-full h-full text-center transition transform-3d ${props.isFront ? '' : 'rotate-y-180'}`}>
         <div className={`absolute w-full h-full rounded-md border-4 bg-cyan-200 blur-md backface-hidden ${props.state === 'duty' ? 'visible' : 'hidden'}`} />
         <div className={`absolute w-full h-full break-words overflow-hidden rounded-md border-4 ${props.isSelectable ? 'border-white hover:border-cyan-300' : 'border-gray-400'} bg-orange-100 backface-hidden`}>
-          {props.frontImage && <Image src={props.frontImage} layout='fill' objectFit='cover' className='absolute pointer-events-none' />}
-          {/* <div className='absolute break-all'>Front: {props.frontImage}</div> */}
+          {props.frontImage && <img onLoad={props.onLoad} src={props.frontImage} className='absolute w-full h-full object-cover pointer-events-none' />}
         </div>
         <div className={`absolute w-full h-full break-words overflow-hidden rounded-md border-4 ${props.isSelectable ? 'border-white hover:border-cyan-300' : 'border-gray-400'} bg-red-200 backface-hidden rotate-y-180`}>
-          <Image src='/assets/card-back.jpg' layout='fill' objectFit='cover' className='absolute pointer-events-none' />
-          {/* <div className='absolute break-all'>Back: {props.frontImage}</div> */}
+          <img src='/assets/card-back.jpg' className='w-full h-full object-cover pointer-events-none' />
+          {props.isLoaded && <div className='absolute top-0'>LOADED!</div>}
         </div>
       </div>
 
     </button>
   )
-}
+})
