@@ -237,6 +237,7 @@ const GameCore = (props: { level: Level, images: LevelImages, onReturnToTitle: (
   const router = useRouter()
   const [state, setState] = useState<GameState>('init')
   const [cards, setCards] = useState<CardProps[]>(() => getCards(props.images[props.level], levelConfig, router.basePath))
+  const [progress, setProgress] = useState(0)
   const [countDown, setCountDown] = useState<number>()
   const [isPlaying, setIsPlaying] = useState(false)
   const [startedAt, setStartedAt] = useState<number>()
@@ -327,8 +328,11 @@ const GameCore = (props: { level: Level, images: LevelImages, onReturnToTitle: (
     console.log('loaded', card)
     card.isLoaded = true
     setCards([...cards])
-    if (cards.every(c => c.isLoaded)) {
+    const loaded = cards.reduce((v, c) => v + (c.isLoaded ? 1 : 0), 0)
+    if (loaded === cards.length) {
       setState('loaded')
+    } else {
+      setProgress(loaded / cards.length)
     }
   }
 
@@ -350,7 +354,7 @@ const GameCore = (props: { level: Level, images: LevelImages, onReturnToTitle: (
     </div>
 
     {state === 'loading' && <div className='absolute flex flex-col w-full h-full text-5xl text-center justify-center'>
-      <div className='text-white bg-rose-300 p-8 bg-opacity-80'>ロード中...</div>
+      <div className='text-white bg-emerald-300 p-8 bg-opacity-80'>ロード中...({Math.round(progress * 100)}%)</div>
     </div>}
 
     {countDown && <div className='absolute flex flex-col w-full h-full text-9xl text-center justify-center'>
@@ -423,7 +427,6 @@ const Card = memo(function Card(props: CardProps) {
         </div>
         <div className={`absolute w-full h-full break-words overflow-hidden rounded-md border-4 ${props.isSelectable ? 'border-white hover:border-cyan-300' : 'border-gray-400'} bg-red-200 backface-hidden rotate-y-180`}>
           <img src={`${props.basePath}/assets/card-back.jpg`} className='w-full h-full object-cover pointer-events-none' />
-          {props.isLoaded && <div className='absolute top-0'>LOADED!</div>}
         </div>
       </div>
 
