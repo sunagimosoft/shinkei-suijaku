@@ -22,6 +22,16 @@ const Home: NextPage<Props> = props => {
         <meta property="og:title" content="神鶏衰弱" />
         <meta property="og:description" content="神鶏の神経衰弱" />
         <meta property="og:image" content="https://sunagimosoft.github.io/shinkei-suijaku/card.jpg" />
+
+        <script async src="https://www.googletagmanager.com/gtag/js?id=G-H9L9HLXKD6"></script>
+        <script dangerouslySetInnerHTML={{
+          __html: `
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', 'G-H9L9HLXKD6');
+          ` }}
+        />
       </Head>
 
       <Game classname='h-screen w-screen' images={props.images} />
