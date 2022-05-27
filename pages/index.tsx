@@ -14,6 +14,14 @@ const Home: NextPage<Props> = props => {
         <title>神鶏衰弱</title>
         <meta name="description" content="神鶏の神経衰弱" />
         <link rel="icon" href="/favicon.ico" />
+
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:site" content="@sunagimosoft" />
+        <meta name="twitter:creator" content="@sunagimosoft" />
+        <meta property="og:url" content="https://sunagimosoft.github.io/shinkei-suijaku/" />
+        <meta property="og:title" content="神鶏衰弱" />
+        <meta property="og:description" content="神鶏の神経衰弱" />
+        <meta property="og:image" content="https://sunagimosoft.github.io/shinkei-suijaku/card.jpg" />
       </Head>
 
       <Game classname='h-screen w-screen' images={props.images} />
